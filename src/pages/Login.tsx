@@ -4,9 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { Spinner } from '@/components/ui';
 import { BodyGarageBadge } from '@/components/BrandMarks';
 
-const AUTH_USERNAME = 'Body_Garagefc';
-const AUTH_PASSWORD = 'bodyGfc1234509876';
-const AUTH_EMAIL = 'body_garagefc@bodygarage.in';
+const AUTH_EMAIL_DOMAIN = 'bodygarage.in';
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -18,16 +16,11 @@ export default function Login() {
     e.preventDefault();
     setError(null);
 
-    if (username.trim() !== AUTH_USERNAME || password !== AUTH_PASSWORD) {
-      setError('Invalid username or password.');
-      return;
-    }
-
     setLoading(true);
 
     const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: AUTH_EMAIL,
-      password: AUTH_PASSWORD,
+      email: `${username.trim().toLowerCase()}@${AUTH_EMAIL_DOMAIN}`,
+      password,
     });
 
     setLoading(false);
@@ -72,7 +65,6 @@ export default function Login() {
                 onChange={(e) => setUsername(e.target.value)}
                 required
                 autoComplete="username"
-                placeholder="Body_Garagefc"
                 className="w-full bg-panel-2 border border-border rounded-xl pl-10 pr-3.5 py-2.5 text-ink placeholder:text-ink/30 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/40 transition-colors"
               />
             </div>

@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Users, AlertTriangle, XCircle, Search, ChevronRight, Clock } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import type { Client } from '@/lib/types';
-import { computeStatus, formatDate } from '@/lib/dates';
+import type { Client, ClientClassPackage } from '@/lib/types';
+import { CLASS_TYPES } from '@/lib/types';
+import { computeStatus, formatDate, todayKey } from '@/lib/dates';
 import { useRoute } from '@/lib/router';
 import { Card, Badge, Input, EmptyState, Spinner } from '@/components/ui';
-import { PersonalTrainingBadge } from '@/components/BrandMarks';
+import { CrossFitBadge, PersonalTrainingBadge, StretchBadge, ZumbaBadge } from '@/components/BrandMarks';
 
 type ExpiringRow = {
   client: Client;
@@ -18,16 +19,26 @@ export default function Dashboard() {
   const [, go] = useRoute();
   const [clients, setClients] = useState<Client[] | null>(null);
   const [search, setSearch] = useState('');
+  const [dateTick, setDateTick] = useState(() => todayKey());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setDateTick(todayKey()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     supabase
-      .from('clients')
-      .select('*')
-      .order('full_name')
-      .then(({ data, error }) => {
-        if (error) console.error(error);
-        setClients(data ?? []);
-      });
+    Promise.all([
+      supabase.from('clients').select('*').order('full_name'),
+      supabase.from('client_class_packages').select('*'),
+    ]).then(([{ data: clientData, error: clientError }, { data: classData, error: classError }]) => {
+      if (clientError || classError) console.error(clientError ?? classError);
+      const packages = (classData as ClientClassPackage[]) ?? [];
+      setClients(((clientData ?? []) as Client[]).map((client) => ({
+        ...client,
+        class_packages: packages.filter((item) => item.client_id === client.id),
+      })));
+    });
   }, []);
 
   const stats = useMemo(() => {
@@ -36,6 +47,7 @@ export default function Dashboard() {
     let expiringSoon = 0;
     let expired = 0;
     let ptClients = 0;
+    const classCounts = Object.fromEntries(CLASS_TYPES.map((type) => [type, 0])) as Record<(typeof CLASS_TYPES)[number], number>;
     for (const c of clients) {
       const gym = computeStatus(c.gym_package_expiry_date);
       const pt = c.has_personal_training ? computeStatus(c.pt_package_expiry_date) : null;
@@ -44,9 +56,14 @@ export default function Dashboard() {
       else if (worst.status === 'expiring') expiringSoon++;
       else if (worst.status === 'expired') expired++;
       if (c.has_personal_training) ptClients++;
+      for (const classPackage of c.class_packages ?? []) {
+        if (!classPackage.paused_at && computeStatus(classPackage.expiry_date ?? null).status === 'active') {
+          classCounts[classPackage.class_type]++;
+        }
+      }
     }
-    return { active, expiringSoon, expired, ptClients, total: clients.length };
-  }, [clients]);
+    return { active, expiringSoon, expired, ptClients, total: clients.length, classCounts };
+  }, [clients, dateTick]);
 
   const expiringRows = useMemo<ExpiringRow[]>(() => {
     if (!clients) return [];
@@ -64,7 +81,7 @@ export default function Dashboard() {
       }
     }
     return rows.sort((a, b) => a.daysRemaining - b.daysRemaining);
-  }, [clients]);
+  }, [clients, dateTick]);
 
   const searchResults = useMemo(() => {
     if (!clients || !search.trim()) return [];
@@ -83,10 +100,18 @@ export default function Dashboard() {
   }
 
   const cards = [
-    { label: 'Total Active Clients', value: stats.active, icon: <Users size={20} />, tone: 'text-success', border: 'border-success/20' },
-    { label: 'Expiring in 7 Days', value: stats.expiringSoon, icon: <AlertTriangle size={20} />, tone: 'text-warning', border: 'border-warning/20' },
-    { label: 'Expired', value: stats.expired, icon: <XCircle size={20} />, tone: 'text-danger', border: 'border-danger/20' },
-    { label: 'PT Clients', value: stats.ptClients, icon: <PersonalTrainingBadge size={20} className="text-white" />, tone: 'text-white', border: 'border-accent/20' },
+    { label: 'Total Active Clients', value: stats.active, filter: { type: 'status' as const, value: 'active' }, icon: <Users size={20} />, tone: 'text-success', border: 'border-success/20' },
+    ...CLASS_TYPES.map((type) => {
+      const styles = {
+        Zumba: { tone: 'text-zumba', border: 'border-zumba/30', icon: <ZumbaBadge size={22} /> },
+        'Cross Fit': { tone: 'text-cross-fit', border: 'border-cross-fit/30', icon: <CrossFitBadge size={22} /> },
+        Stretch: { tone: 'text-stretch', border: 'border-stretch/30', icon: <StretchBadge size={22} /> },
+      }[type];
+      return { label: type, value: stats.classCounts[type], filter: { type: 'package' as const, value: type }, ...styles };
+    }),
+    { label: 'Personal Training', value: stats.ptClients, filter: { type: 'package' as const, value: 'yes' }, icon: <PersonalTrainingBadge size={20} className="text-white" />, tone: 'text-white', border: 'border-accent/20' },
+    { label: 'Expiring in 7 Days', value: stats.expiringSoon, filter: { type: 'status' as const, value: 'expiring' }, icon: <AlertTriangle size={20} />, tone: 'text-warning', border: 'border-warning/20' },
+    { label: 'Expired', value: stats.expired, filter: { type: 'status' as const, value: 'expired' }, icon: <XCircle size={20} />, tone: 'text-expired', border: 'border-expired/30' },
   ];
 
   return (
@@ -97,15 +122,17 @@ export default function Dashboard() {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3 sm:gap-4">
         {cards.map((c) => (
-          <Card key={c.label} className={`p-4 sm:p-5 border ${c.border} hover:shadow-glow-sm transition-shadow`}>
+          <button key={c.label} type="button" onClick={() => go({ name: 'clients', filter: c.filter })} className="text-left">
+            <Card className={`h-full p-4 sm:p-5 border ${c.border} hover:shadow-glow-sm transition-shadow`}>
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-semibold uppercase tracking-wide text-ink/50">{c.label}</span>
               <span className={c.tone}>{c.icon}</span>
             </div>
             <div className={`font-display text-3xl sm:text-4xl font-bold ${c.tone}`}>{c.value}</div>
-          </Card>
+            </Card>
+          </button>
         ))}
       </div>
 

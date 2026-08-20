@@ -1,4 +1,7 @@
 import { Handshake } from 'lucide-react';
+import { FaRunning } from 'react-icons/fa';
+import { GiWeightLiftingUp } from 'react-icons/gi';
+import { GiMeditation } from 'react-icons/gi';
 
 type BrandProps = {
   className?: string;
@@ -38,6 +41,42 @@ export function PersonalTrainingBadge({ className = '', size = 22 }: BrandProps)
       aria-label="Personal training logo"
       role="img"
       strokeWidth={2.2}
+    />
+  );
+}
+
+export function ZumbaBadge({ className = '', size = 22 }: BrandProps) {
+  return (
+    <FaRunning
+      width={size}
+      height={size}
+      className={className}
+      aria-label="Zumba class logo"
+      role="img"
+    />
+  );
+}
+
+export function CrossFitBadge({ className = '', size = 22 }: BrandProps) {
+  return (
+    <GiWeightLiftingUp
+      width={size}
+      height={size}
+      className={className}
+      aria-label="Cross Fit class logo"
+      role="img"
+    />
+  );
+}
+
+export function StretchBadge({ className = '', size = 22 }: BrandProps) {
+  return (
+    <GiMeditation
+      width={size}
+      height={size}
+      className={className}
+      aria-label="Stretch class logo"
+      role="img"
     />
   );
 }

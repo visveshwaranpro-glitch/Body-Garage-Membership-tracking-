@@ -15,12 +15,28 @@ export const PACKAGE_TYPES = [
   'Annual',
 ] as const;
 
+export const CLASS_TYPES = ['Zumba', 'Cross Fit', 'Stretch'] as const;
+
+export type ClassType = (typeof CLASS_TYPES)[number];
+
+export type ClientClassPackage = {
+  id?: string;
+  client_id?: string;
+  class_type: ClassType;
+  start_date: string;
+  duration_days: number;
+  expiry_date?: string;
+  price: number | null;
+  paused_at?: string | null;
+};
+
 export type PackageType = (typeof PACKAGE_TYPES)[number];
 
 export type Client = {
   id: string;
   full_name: string;
   phone: string;
+  is_favorite: boolean;
   email: string | null;
   trainer_assigned: string | null;
   join_date: string;
@@ -29,6 +45,7 @@ export type Client = {
   gym_package_duration_days: number;
   gym_package_expiry_date: string;
   gym_package_price: number | null;
+  gym_paused_at: string | null;
   has_personal_training: boolean;
   pt_trainer: string | null;
   pt_package_name: string | null;
@@ -36,12 +53,20 @@ export type Client = {
   pt_package_duration_days: number | null;
   pt_package_expiry_date: string | null;
   pt_package_price: number | null;
+  pt_paused_at: string | null;
+  has_class_package: boolean;
+  class_type: ClassType | null;
+  class_start_date: string | null;
+  class_duration_days: number | null;
+  class_expiry_date: string | null;
+  class_price: number | null;
+  class_packages?: ClientClassPackage[];
   notes: string | null;
   created_at: string;
   updated_at: string;
 };
 
-export type ClientInput = Omit<Client, 'id' | 'created_at' | 'updated_at' | 'gym_package_expiry_date' | 'pt_package_expiry_date'>;
+export type ClientInput = Omit<Client, 'id' | 'created_at' | 'updated_at' | 'gym_package_expiry_date' | 'pt_package_expiry_date' | 'class_expiry_date'>;
 
 export type Renewal = {
   id: string;

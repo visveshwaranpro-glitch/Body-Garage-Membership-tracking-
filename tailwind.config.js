@@ -16,6 +16,10 @@ export default {
         success: '#22C55E',
         warning: '#F59E0B',
         danger: '#EF4444',
+        expired: '#DC2626',
+        zumba: '#F472B6',
+        'cross-fit': '#38BDF8',
+        stretch: '#14B8A6',
       },
       fontFamily: {
         display: ['Oswald', 'sans-serif'],

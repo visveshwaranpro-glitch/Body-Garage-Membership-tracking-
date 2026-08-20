@@ -93,6 +93,7 @@ export function Input({
   type = 'text',
   placeholder,
   required = false,
+  disabled = false,
   error,
   className = '',
 }: {
@@ -102,6 +103,7 @@ export function Input({
   type?: string;
   placeholder?: string;
   required?: boolean;
+  disabled?: boolean;
   error?: string;
   className?: string;
 }) {
@@ -117,7 +119,8 @@ export function Input({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full bg-panel-2 border border-border rounded-xl px-3.5 py-2.5 text-ink placeholder:text-ink/30 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/40 transition-colors"
+        disabled={disabled}
+        className="w-full bg-panel-2 border border-border rounded-xl px-3.5 py-2.5 text-ink placeholder:text-ink/30 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/40 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
       />
       {error && <span className="block text-xs text-danger mt-1">{error}</span>}
     </label>

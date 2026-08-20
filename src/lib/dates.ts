@@ -8,8 +8,23 @@ export function daysBetween(from: Date, to: Date): number {
 }
 
 export function today(): Date {
-  const d = new Date();
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  return new Date(Number(values.year), Number(values.month) - 1, Number(values.day), 12);
+}
+
+export function todayKey(): string {
+  const d = today();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+export function todayInputDate(): string {
+  return todayKey();
 }
 
 export function parseDate(value: string | null | undefined): Date | null {
@@ -63,6 +78,26 @@ export function addDays(date: Date, days: number): Date {
   const d = new Date(date);
   d.setDate(d.getDate() + days);
   return d;
+}
+
+export function addMonths(date: Date, months: number): Date {
+  const year = date.getFullYear();
+  const month = date.getMonth() + months;
+  const day = date.getDate();
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  return new Date(year, month, Math.min(day, lastDay));
+}
+
+export function packageDurationDays(startDate: string, packageType: string | null | undefined): number {
+  const start = parseDate(startDate);
+  if (!start) return 0;
+  const months = {
+    Monthly: 1,
+    Quarterly: 3,
+    'Half-Yearly': 6,
+    Annual: 12,
+  }[packageType ?? ''];
+  return months ? daysBetween(start, addMonths(start, months)) : 0;
 }
 
 export function toInputDate(value: string | null | undefined): string {

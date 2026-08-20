@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 
 export type Route =
   | { name: 'dashboard' }
-  | { name: 'clients' }
+  | { name: 'clients'; filter?: { type: 'status' | 'package'; value: string } }
   | { name: 'add-client' }
   | { name: 'client'; id: string };
 
@@ -12,14 +12,24 @@ function parseHash(): Route {
     const id = hash.replace('/clients/', '');
     return { name: 'client', id };
   }
-  if (hash === '/clients') return { name: 'clients' };
+  if (hash.startsWith('/clients')) {
+    const params = new URLSearchParams(hash.split('?')[1]);
+    const filterType = params.get('filterType');
+    const filterValue = params.get('filterValue');
+    return filterType && filterValue
+      ? { name: 'clients', filter: { type: filterType as 'status' | 'package', value: filterValue } }
+      : { name: 'clients' };
+  }
   if (hash === '/add-client') return { name: 'add-client' };
   return { name: 'dashboard' };
 }
 
 export function navigate(route: Route) {
   let hash = '/';
-  if (route.name === 'clients') hash = '/clients';
+  if (route.name === 'clients') {
+    hash = '/clients';
+    if (route.filter) hash += `?filterType=${encodeURIComponent(route.filter.type)}&filterValue=${encodeURIComponent(route.filter.value)}`;
+  }
   else if (route.name === 'add-client') hash = '/add-client';
   else if (route.name === 'client') hash = `/clients/${route.id}`;
   window.location.hash = hash;
