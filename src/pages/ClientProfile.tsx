@@ -27,6 +27,11 @@ export default function ClientProfile({ id }: { id: string }) {
   const [renewKind, setRenewKind] = useState<RenewKind | null>(null);
   const [addPtOpen, setAddPtOpen] = useState(false);
   const [cancelPtOpen, setCancelPtOpen] = useState(false);
+  const [classRenewItem, setClassRenewItem] = useState<ClientClassPackage | null>(null);
+  const [classRenewStart, setClassRenewStart] = useState(todayInputDate());
+  const [classRenewDuration, setClassRenewDuration] = useState('30');
+  const [classRenewPrice, setClassRenewPrice] = useState('');
+  const [classCancelItem, setClassCancelItem] = useState<ClientClassPackage | null>(null);
   const [dateTick, setDateTick] = useState(() => todayKey());
 
   useEffect(() => {
@@ -135,6 +140,37 @@ export default function ClientProfile({ id }: { id: string }) {
     const classResults = await Promise.all(classUpdates);
     const classError = classResults.find((result) => result?.error)?.error;
     if (classError) { setError(`Client ${shouldPause ? 'paused' : 'resumed'}, but class packages could not be updated: ${classError.message}`); return; }
+    loadClient();
+  };
+
+  const openClassRenew = (item: ClientClassPackage) => {
+    setClassRenewItem(item);
+    setClassRenewStart(todayInputDate());
+    setClassRenewDuration(String(item.duration_days || 30));
+    setClassRenewPrice(item.price == null ? '' : String(item.price));
+  };
+
+  const submitClassRenew = async () => {
+    if (!classRenewItem?.id || !classRenewStart || !Number(classRenewDuration)) return;
+    const duration = Number(classRenewDuration);
+    const expiryDate = toInputDate(addDays(new Date(classRenewStart), duration).toISOString());
+    const { error } = await supabase.from('client_class_packages').update({
+      start_date: classRenewStart,
+      duration_days: duration,
+      expiry_date: expiryDate,
+      price: classRenewPrice ? Number(classRenewPrice) : null,
+      paused_at: null,
+    }).eq('id', classRenewItem.id);
+    if (error) { setError(`Could not renew ${classRenewItem.class_type}: ${error.message}`); return; }
+    setClassRenewItem(null);
+    loadClient();
+  };
+
+  const submitClassCancel = async () => {
+    if (!classCancelItem?.id) return;
+    const { error } = await supabase.from('client_class_packages').delete().eq('id', classCancelItem.id);
+    if (error) { setError(`Could not cancel ${classCancelItem.class_type}: ${error.message}`); return; }
+    setClassCancelItem(null);
     loadClient();
   };
 
@@ -522,13 +558,16 @@ export default function ClientProfile({ id }: { id: string }) {
           <div className="space-y-3">
             {classPackages.map((item) => {
               const status = computeStatus(item.expiry_date ?? null);
-              return <div key={item.class_type} className="grid sm:grid-cols-2 lg:grid-cols-5 gap-3 rounded-xl border border-border bg-panel-2 p-3 items-end">
+              return <div key={item.class_type} className="grid sm:grid-cols-2 lg:grid-cols-6 gap-3 rounded-xl border border-border bg-panel-2 p-3 items-end">
                 <Field label="Class" value={item.class_type} />
                 <Field label="Start Date" value={formatDate(item.start_date)} />
                 <Field label="Expiry" value={formatDate(item.expiry_date)} />
                 <Field label="Status" value={item.paused_at ? 'Paused' : status.label} />
+                <Button variant="secondary" size="sm" onClick={() => openClassRenew(item)}><RefreshCw size={14} /> Renew</Button>
+                <Button variant="danger" size="sm" onClick={() => setClassCancelItem(item)}><XCircle size={14} /> Cancel</Button>
               </div>;
             })}
+            <Button variant="secondary" size="sm" onClick={startEdit}><Plus size={14} /> Add Other Classes</Button>
           </div>
         ) : (
           <div className="text-center py-6">
@@ -585,6 +624,40 @@ export default function ClientProfile({ id }: { id: string }) {
         <div className="flex items-center gap-2 justify-end">
           <Button variant="ghost" onClick={() => setDeleteOpen(false)}>Cancel</Button>
           <Button variant="danger" onClick={handleDelete}><Trash2 size={16} /> Delete Permanently</Button>
+        </div>
+      </Modal>
+
+      <Modal open={classRenewItem !== null} onClose={() => setClassRenewItem(null)} title={`Renew ${classRenewItem?.class_type ?? 'Class'} Package`}>
+        <div className="space-y-4">
+          <div className="bg-panel-2 rounded-xl px-4 py-3 border border-border">
+            <span className="text-xs font-semibold uppercase tracking-wide text-ink/50">Class</span>
+            <div className="font-display font-bold text-ink mt-1">{classRenewItem?.class_type ?? '—'}</div>
+          </div>
+          <Input label="New Start Date" value={classRenewStart} onChange={setClassRenewStart} type="date" required />
+          <div className="grid grid-cols-2 gap-4">
+            <Input label="Duration (days)" value={classRenewDuration} onChange={setClassRenewDuration} type="number" required />
+            <Input label="Price (₹)" value={classRenewPrice} onChange={setClassRenewPrice} type="number" placeholder="Optional" />
+          </div>
+          <div className="bg-panel-2 rounded-xl px-4 py-3 flex items-center justify-between border border-border">
+            <span className="text-xs font-semibold uppercase tracking-wide text-ink/50">New Expiry</span>
+            <span className="font-display font-bold text-accent">
+              {classRenewStart && classRenewDuration ? formatDate(addDays(new Date(classRenewStart), Number(classRenewDuration)).toISOString()) : '—'}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 justify-end">
+            <Button variant="ghost" onClick={() => setClassRenewItem(null)}>Cancel</Button>
+            <Button onClick={submitClassRenew}><RefreshCw size={16} /> Confirm Renewal</Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={classCancelItem !== null} onClose={() => setClassCancelItem(null)} title={`Cancel ${classCancelItem?.class_type ?? 'Class'}`}>
+        <p className="text-sm text-ink/60 mb-5">
+          This will remove the <span className="font-semibold text-ink">{classCancelItem?.class_type ?? 'selected'}</span> class package for <span className="font-semibold text-ink">{client.full_name}</span>. Other classes will remain unchanged.
+        </p>
+        <div className="flex items-center gap-2 justify-end">
+          <Button variant="ghost" onClick={() => setClassCancelItem(null)}>Keep Class</Button>
+          <Button variant="danger" onClick={submitClassCancel}><XCircle size={16} /> Cancel Class</Button>
         </div>
       </Modal>
 
