@@ -8,6 +8,7 @@ import { useRoute } from '@/lib/router';
 import { useAuth } from '@/lib/auth';
 import { Card, Input, Select, Textarea, Button, Badge, Modal, Spinner, EmptyState } from '@/components/ui';
 import ClientContactActions from '@/components/ClientContactActions';
+import { CrossFitBadge, StretchBadge, ZumbaBadge } from '@/components/BrandMarks';
 
 type RenewKind = 'gym' | 'pt';
 
@@ -99,35 +100,6 @@ export default function ClientProfile({ id }: { id: string }) {
       return;
     }
     setClient({ ...client, is_favorite: nextFavorite });
-  };
-
-  const toggleClientPackagePause = async (kind: 'gym' | 'pt') => {
-    if (!client) return;
-    const pausedAt = kind === 'gym' ? client.gym_paused_at : client.pt_paused_at;
-    const todayDate = todayInputDate();
-    const column = kind === 'gym' ? 'gym_paused_at' : 'pt_paused_at';
-    const expiryColumn = kind === 'gym' ? 'gym_package_expiry_date' : 'pt_package_expiry_date';
-    const durationColumn = kind === 'gym' ? 'gym_package_duration_days' : 'pt_package_duration_days';
-    const currentExpiry = kind === 'gym' ? client.gym_package_expiry_date : client.pt_package_expiry_date ?? client.gym_package_expiry_date;
-    const currentDuration = kind === 'gym' ? client.gym_package_duration_days : client.pt_package_duration_days ?? 0;
-    const updates = pausedAt
-      ? { [column]: null, [expiryColumn]: toInputDate(addDays(new Date(currentExpiry), daysBetween(new Date(pausedAt), today())).toISOString()), [durationColumn]: currentDuration + daysBetween(new Date(pausedAt), today()) }
-      : { [column]: todayDate };
-    const { error: pauseError } = await supabase.from('clients').update(updates).eq('id', client.id);
-    if (pauseError) { setError(`Could not ${pausedAt ? 'resume' : 'pause'} package.`); return; }
-    loadClient();
-  };
-
-  const toggleClassPause = async (item: ClientClassPackage) => {
-    if (!item.id) return;
-    const pausedAt = item.paused_at;
-    const pauseDays = pausedAt ? daysBetween(new Date(pausedAt), today()) : 0;
-    const updates = pausedAt
-      ? { paused_at: null, expiry_date: toInputDate(addDays(new Date(item.expiry_date ?? item.start_date), pauseDays).toISOString()), duration_days: item.duration_days + pauseDays }
-      : { paused_at: todayInputDate() };
-    const { error: pauseError } = await supabase.from('client_class_packages').update(updates).eq('id', item.id);
-    if (pauseError) { setError(`Could not ${pausedAt ? 'resume' : 'pause'} class package.`); return; }
-    loadClient();
   };
 
   const toggleOverallPackagePause = async () => {
@@ -443,7 +415,7 @@ export default function ClientProfile({ id }: { id: string }) {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <Button variant="secondary" size="sm" onClick={() => openRenew('gym')}><RefreshCw size={14} /> Renew Gym Package</Button>
-          <Button variant={client.gym_paused_at ? 'success' : 'ghost'} size="sm" onClick={() => toggleClientPackagePause('gym')}>{client.gym_paused_at ? 'Resume Gym' : 'Pause Gym'}</Button>
+          <Button variant={client.gym_paused_at ? 'success' : 'ghost'} size="sm" onClick={toggleOverallPackagePause}>{client.gym_paused_at ? 'Resume All Packages' : 'Pause All Packages'}</Button>
         </div>
       </Card>
 
@@ -503,7 +475,6 @@ export default function ClientProfile({ id }: { id: string }) {
             </div>
             <div className="flex items-center gap-2">
               <Button variant="secondary" size="sm" onClick={() => openRenew('pt')}><RefreshCw size={14} /> Renew PT Package</Button>
-              <Button variant={client.pt_paused_at ? 'success' : 'ghost'} size="sm" onClick={() => toggleClientPackagePause('pt')}>{client.pt_paused_at ? 'Resume PT' : 'Pause PT'}</Button>
               <Button variant="danger" size="sm" onClick={() => setCancelPtOpen(true)}><XCircle size={14} /> Cancel Personal Training</Button>
             </div>
           </>
@@ -519,7 +490,12 @@ export default function ClientProfile({ id }: { id: string }) {
       <Card className="p-5 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="font-display text-lg font-bold uppercase tracking-wide flex items-center gap-2">
-            <Dumbbell size={18} className="text-accent" /> Classes
+            <span className="flex items-center gap-1.5" aria-label="Class types">
+              <ZumbaBadge size={18} className="text-zumba" />
+              <CrossFitBadge size={18} className="text-cross-fit" />
+              <StretchBadge size={18} className="text-stretch" />
+            </span>
+            Classes
           </h2>
           {classPackages.length > 0 && <Badge tone="neutral">{classPackages.length} selected</Badge>}
         </div>
@@ -551,12 +527,14 @@ export default function ClientProfile({ id }: { id: string }) {
                 <Field label="Start Date" value={formatDate(item.start_date)} />
                 <Field label="Expiry" value={formatDate(item.expiry_date)} />
                 <Field label="Status" value={item.paused_at ? 'Paused' : status.label} />
-                <Button variant={item.paused_at ? 'success' : 'ghost'} size="sm" onClick={() => toggleClassPause(item)}>{item.paused_at ? 'Resume' : 'Pause'}</Button>
               </div>;
             })}
           </div>
         ) : (
-          <p className="text-sm text-ink/40">No class package.</p>
+          <div className="text-center py-6">
+            <p className="text-sm text-ink/40 mb-3">This client is not enrolled in classes.</p>
+            <Button variant="secondary" size="sm" onClick={startEdit}><Plus size={14} /> Add Classes</Button>
+          </div>
         )}
       </Card>
 
