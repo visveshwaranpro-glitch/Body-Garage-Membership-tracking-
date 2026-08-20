@@ -44,8 +44,8 @@ export default function Dashboard() {
   const stats = useMemo(() => {
     if (!clients) return null;
     let active = 0;
-    let expiringSoon = 0;
-    let expired = 0;
+    const expiringSoonClients = new Set<string>();
+    const expiredClients = new Set<string>();
     let ptClients = 0;
     const classCounts = Object.fromEntries(CLASS_TYPES.map((type) => [type, 0])) as Record<(typeof CLASS_TYPES)[number], number>;
     for (const c of clients) {
@@ -53,8 +53,10 @@ export default function Dashboard() {
       const pt = c.has_personal_training ? computeStatus(c.pt_package_expiry_date) : null;
       const worst = pt && pt.status !== 'none' && (gym.status === 'none' || (pt.daysRemaining ?? Infinity) < (gym.daysRemaining ?? Infinity)) ? pt : gym;
       if (worst.status === 'active') active++;
-      else if (worst.status === 'expiring') expiringSoon++;
-      else if (worst.status === 'expired') expired++;
+      if (!c.gym_paused_at && gym.status === 'expiring') expiringSoonClients.add(c.id);
+      if (!c.pt_paused_at && pt?.status === 'expiring') expiringSoonClients.add(c.id);
+      if (!c.gym_paused_at && gym.status === 'expired') expiredClients.add(c.id);
+      if (!c.pt_paused_at && pt?.status === 'expired') expiredClients.add(c.id);
       if (c.has_personal_training) ptClients++;
       for (const classPackage of c.class_packages ?? []) {
         if (!classPackage.paused_at && computeStatus(classPackage.expiry_date ?? null).status === 'active') {
@@ -62,7 +64,7 @@ export default function Dashboard() {
         }
       }
     }
-    return { active, expiringSoon, expired, ptClients, total: clients.length, classCounts };
+    return { active, expiringSoon: expiringSoonClients.size, expired: expiredClients.size, ptClients, total: clients.length, classCounts };
   }, [clients, dateTick]);
 
   const expiringRows = useMemo<ExpiringRow[]>(() => {
@@ -127,7 +129,7 @@ export default function Dashboard() {
           <button key={c.label} type="button" onClick={() => go({ name: 'clients', filter: c.filter })} className="text-left">
             <Card className={`h-full p-4 sm:p-5 border ${c.border} hover:shadow-glow-sm transition-shadow`}>
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-semibold uppercase tracking-wide text-ink/50">{c.label}</span>
+              <span className="min-h-9 text-xs font-semibold uppercase tracking-wide text-ink/50">{c.label}</span>
               <span className={c.tone}>{c.icon}</span>
             </div>
             <div className={`font-display text-3xl sm:text-4xl font-bold ${c.tone}`}>{c.value}</div>
