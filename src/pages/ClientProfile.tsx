@@ -130,6 +130,42 @@ export default function ClientProfile({ id }: { id: string }) {
     loadClient();
   };
 
+  const toggleOverallPackagePause = async () => {
+    if (!client) return;
+    setError(null);
+    const shouldPause = !client.gym_paused_at;
+    const todayDate = todayInputDate();
+    const clientUpdates = shouldPause
+      ? { gym_paused_at: todayDate, ...(client.has_personal_training ? { pt_paused_at: todayDate } : {}) }
+      : {
+        gym_paused_at: null,
+        gym_package_expiry_date: toInputDate(addDays(new Date(client.gym_package_expiry_date), daysBetween(new Date(client.gym_paused_at ?? todayDate), today())).toISOString()),
+        gym_package_duration_days: client.gym_package_duration_days + daysBetween(new Date(client.gym_paused_at ?? todayDate), today()),
+        ...(client.has_personal_training && client.pt_paused_at && client.pt_package_expiry_date && client.pt_package_duration_days != null ? {
+          pt_paused_at: null,
+          pt_package_expiry_date: toInputDate(addDays(new Date(client.pt_package_expiry_date), daysBetween(new Date(client.pt_paused_at), today())).toISOString()),
+          pt_package_duration_days: client.pt_package_duration_days + daysBetween(new Date(client.pt_paused_at), today()),
+        } : {}),
+      };
+    const { error: clientError } = await supabase.from('clients').update(clientUpdates).eq('id', client.id);
+    if (clientError) { setError(`Could not ${shouldPause ? 'pause' : 'resume'} packages: ${clientError.message}`); return; }
+
+    const classUpdates = (classPackages ?? []).filter((item) => item.id).map((item) => {
+      if (shouldPause) return supabase.from('client_class_packages').update({ paused_at: todayDate }).eq('id', item.id);
+      if (!item.paused_at) return null;
+      const pauseDays = daysBetween(new Date(item.paused_at), today());
+      return supabase.from('client_class_packages').update({
+        paused_at: null,
+        expiry_date: toInputDate(addDays(new Date(item.expiry_date ?? item.start_date), pauseDays).toISOString()),
+        duration_days: item.duration_days + pauseDays,
+      }).eq('id', item.id);
+    }).filter(Boolean);
+    const classResults = await Promise.all(classUpdates);
+    const classError = classResults.find((result) => result?.error)?.error;
+    if (classError) { setError(`Client ${shouldPause ? 'paused' : 'resumed'}, but class packages could not be updated: ${classError.message}`); return; }
+    loadClient();
+  };
+
   const saveEdit = async () => {
     if (!client) return;
     setSaving(true);
@@ -309,6 +345,9 @@ export default function ClientProfile({ id }: { id: string }) {
             </>
           ) : (
             <>
+              <Button size="sm" variant={client.gym_paused_at ? 'success' : 'ghost'} onClick={toggleOverallPackagePause}>
+                {client.gym_paused_at ? 'Resume All Packages' : 'Pause All Packages'}
+              </Button>
               <Button size="sm" variant="secondary" onClick={startEdit}>Edit</Button>
               <Button size="sm" variant="danger" onClick={() => setDeleteOpen(true)}><Trash2 size={16} /> Delete</Button>
             </>
