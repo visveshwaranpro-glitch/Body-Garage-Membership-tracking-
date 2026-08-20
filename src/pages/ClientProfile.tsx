@@ -609,7 +609,7 @@ export default function ClientProfile({ id }: { id: string }) {
                     {r.package_kind === 'gym' ? 'Gym Package' : 'Personal Training'}
                   </div>
                   <div className="text-xs text-ink/40">
-                    {formatDate(r.previous_expiry_date)} → {formatDate(r.new_expiry_date)} · {r.renewed_by ?? 'Staff'}
+                    {formatDate(r.previous_expiry_date)} → {formatDate(r.new_expiry_date)}
                   </div>
                 </div>
                 <div className="text-right">
