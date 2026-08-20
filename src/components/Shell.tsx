@@ -75,7 +75,7 @@ export default function Shell({ children }: { children: ReactNode }) {
       </header>
 
       {/* Main */}
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-6">{children}</main>
+      <main className="flex-1 min-w-0 max-w-7xl mx-auto w-full px-3 sm:px-6 py-5 sm:py-6">{children}</main>
 
       {/* Footer */}
       <footer className="border-t border-border py-4 px-6 text-center text-xs text-ink/30">

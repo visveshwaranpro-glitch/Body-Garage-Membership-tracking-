@@ -224,7 +224,7 @@ export default function AddClient() {
         {/* Class package */}
         <Card className="p-5 space-y-4">
           <span className="font-display text-sm font-bold uppercase tracking-wide text-ink/70">Classes</span>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {CLASS_TYPES.map((type) => {
               const selected = classPackages.some((item) => item.class_type === type);
               return <button key={type} type="button" onClick={() => toggleClass(type)} className={`rounded-xl border px-3 py-2 text-sm font-semibold transition-colors ${selected ? 'border-accent bg-accent/15 text-accent' : 'border-border bg-panel-2 text-ink/60 hover:border-accent/50'}`}>{type}</button>;

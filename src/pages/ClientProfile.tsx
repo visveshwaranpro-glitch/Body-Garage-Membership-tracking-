@@ -537,7 +537,7 @@ export default function ClientProfile({ id }: { id: string }) {
         </div>
         {editing ? (
           <>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               {CLASS_TYPES.map((type) => {
                 const selected = classPackages.some((item) => item.class_type === type);
                 return <button key={type} type="button" onClick={() => setClassPackages((current) => selected ? current.filter((item) => item.class_type !== type) : [...current, { class_type: type, start_date: todayInputDate(), duration_days: 30, price: null }])} className={`rounded-xl border px-3 py-2 text-sm font-semibold transition-colors ${selected ? 'border-accent bg-accent/15 text-accent' : 'border-border bg-panel-2 text-ink/60 hover:border-accent/50'}`}>{type}</button>;
@@ -558,13 +558,19 @@ export default function ClientProfile({ id }: { id: string }) {
           <div className="space-y-3">
             {classPackages.map((item) => {
               const status = computeStatus(item.expiry_date ?? null);
-              return <div key={item.class_type} className="grid sm:grid-cols-2 lg:grid-cols-6 gap-3 rounded-xl border border-border bg-panel-2 p-3 items-end">
-                <Field label="Class" value={item.class_type} />
-                <Field label="Start Date" value={formatDate(item.start_date)} />
-                <Field label="Expiry" value={formatDate(item.expiry_date)} />
-                <Field label="Status" value={item.paused_at ? 'Paused' : status.label} />
-                <Button variant="secondary" size="sm" onClick={() => openClassRenew(item)}><RefreshCw size={14} /> Renew</Button>
-                <Button variant="danger" size="sm" onClick={() => setClassCancelItem(item)}><XCircle size={14} /> Cancel</Button>
+              return <div key={item.class_type} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 rounded-xl border border-border bg-panel-2 p-3 sm:p-4 items-start">
+                <div className="min-w-0"><Field label="Class" value={item.class_type} /></div>
+                <div className="min-w-0"><Field label="Start Date" value={formatDate(item.start_date)} /></div>
+                <div className="min-w-0"><Field label="Expiry" value={formatDate(item.expiry_date)} /></div>
+                <div className="min-w-0"><Field label="Status" value={item.paused_at ? 'Paused' : status.label} /></div>
+                <div className="min-w-0">
+                  <span className="block text-xs font-semibold uppercase tracking-wide text-ink/60 mb-1.5">Renew</span>
+                  <Button className="w-full" variant="secondary" size="sm" onClick={() => openClassRenew(item)}><RefreshCw size={14} /> Renew</Button>
+                </div>
+                <div className="min-w-0">
+                  <span className="block text-xs font-semibold uppercase tracking-wide text-ink/60 mb-1.5">Cancel</span>
+                  <Button className="w-full" variant="danger" size="sm" onClick={() => setClassCancelItem(item)}><XCircle size={14} /> Cancel</Button>
+                </div>
               </div>;
             })}
             <Button variant="secondary" size="sm" onClick={startEdit}><Plus size={14} /> Add Other Classes</Button>
@@ -725,8 +731,8 @@ export default function ClientProfile({ id }: { id: string }) {
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-xs font-semibold uppercase tracking-wide text-ink/50 mb-1">{label}</div>
-      <div className="text-ink font-medium">{value}</div>
+      <div className="text-xs leading-4 font-semibold uppercase tracking-wide text-ink/50 mb-1 whitespace-nowrap">{label}</div>
+      <div className="text-sm leading-5 text-ink font-medium">{value}</div>
     </div>
   );
 }
